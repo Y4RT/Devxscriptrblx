@@ -1,0 +1,460 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local VERSION = "v1.0.0"
+
+--------------------------------------------------------------------------------
+-- 1. DYNAMIC UI CREATION (INSTANCES)
+--------------------------------------------------------------------------------
+local existingGui = playerGui:FindFirstChild("zukaaclient")
+if existingGui then
+	existingGui:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "zukaaclient"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+local clickSound = Instance.new("Sound")
+clickSound.Name = "ClickSound"
+clickSound.SoundId = "rbxassetid://6895079853"
+clickSound.Volume = 0.5
+clickSound.Parent = screenGui
+
+-- Main Container Frame
+local background = Instance.new("Frame")
+background.Name = "Background"
+background.Size = UDim2.new(0, 650, 0, 420)
+background.Position = UDim2.new(0.5, -325, 0.5, -210)
+background.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+background.BorderSizePixel = 0
+background.Active = true
+background.Draggable = true
+background.Parent = screenGui
+
+Instance.new("UICorner", background).CornerRadius = UDim.new(0, 10)
+
+local darkerBg = Instance.new("Frame")
+darkerBg.Name = "Backgrounddarker"
+darkerBg.Size = UDim2.new(1, -20, 1, -20)
+darkerBg.Position = UDim2.new(0, 10, 0, 10)
+darkerBg.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+darkerBg.BorderSizePixel = 0
+darkerBg.Parent = background
+
+Instance.new("UICorner", darkerBg).CornerRadius = UDim.new(0, 8)
+
+-- Header Info
+local profileImage = Instance.new("ImageLabel")
+profileImage.Name = "PlayerProfile"
+profileImage.Size = UDim2.new(0, 40, 0, 40)
+profileImage.Position = UDim2.new(0, 10, 0, 10)
+profileImage.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+profileImage.BorderSizePixel = 0
+profileImage.Parent = darkerBg
+Instance.new("UICorner", profileImage).CornerRadius = UDim.new(1, 0)
+
+local nameLabel = Instance.new("TextLabel")
+nameLabel.Name = "PlayerName"
+nameLabel.Size = UDim2.new(0, 200, 0, 20)
+nameLabel.Position = UDim2.new(0, 60, 0, 10)
+nameLabel.Font = Enum.Font.Sarpanch
+nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+nameLabel.TextSize = 14
+nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+nameLabel.BackgroundTransparency = 1
+nameLabel.Parent = darkerBg
+
+local versionLabel = Instance.new("TextLabel")
+versionLabel.Name = "VersionLabel"
+versionLabel.Size = UDim2.new(0, 150, 0, 18)
+versionLabel.Position = UDim2.new(0, 60, 0, 30)
+versionLabel.Font = Enum.Font.Sarpanch
+versionLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+versionLabel.TextSize = 12
+versionLabel.TextXAlignment = Enum.TextXAlignment.Left
+versionLabel.BackgroundTransparency = 1
+versionLabel.Parent = darkerBg
+
+local dateLabel = Instance.new("TextLabel")
+dateLabel.Name = "DateLabel"
+dateLabel.Size = UDim2.new(0, 150, 0, 20)
+dateLabel.Position = UDim2.new(1, -160, 0, 10)
+dateLabel.Font = Enum.Font.Sarpanch
+dateLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+dateLabel.TextSize = 12
+dateLabel.TextXAlignment = Enum.TextXAlignment.Right
+dateLabel.BackgroundTransparency = 1
+dateLabel.Parent = darkerBg
+
+-- Category Sidebar
+local categoriesFrame = Instance.new("Frame")
+categoriesFrame.Name = "Catagories"
+categoriesFrame.Size = UDim2.new(0, 150, 1, -70)
+categoriesFrame.Position = UDim2.new(0, 10, 0, 60)
+categoriesFrame.BackgroundTransparency = 1
+categoriesFrame.Parent = darkerBg
+
+local scrollingFrame = Instance.new("ScrollingFrame")
+scrollingFrame.Name = "ScrollingFrame"
+scrollingFrame.Size = UDim2.new(1, 0, 1, 0)
+scrollingFrame.BackgroundTransparency = 1
+scrollingFrame.ScrollBarThickness = 2
+scrollingFrame.Parent = categoriesFrame
+
+-- Page Content Container
+local pageBackground = Instance.new("Frame")
+pageBackground.Name = "PageBackground"
+pageBackground.Size = UDim2.new(1, -180, 1, -70)
+pageBackground.Position = UDim2.new(0, 170, 0, 60)
+pageBackground.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+pageBackground.BorderSizePixel = 0
+pageBackground.Parent = darkerBg
+Instance.new("UICorner", pageBackground).CornerRadius = UDim.new(0, 6)
+
+--------------------------------------------------------------------------------
+-- 2. CORE UTILITY FUNCTIONS
+--------------------------------------------------------------------------------
+local function playClickSound()
+	if clickSound then
+		clickSound:Play()
+	end
+end
+
+local function setupPageLayout(page)
+	page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	page.ScrollBarThickness = 4
+
+	local padding = page:FindFirstChildOfClass("UIPadding") or Instance.new("UIPadding", page)
+	padding.PaddingTop = UDim.new(0, 10)
+	padding.PaddingBottom = UDim.new(0, 10)
+	padding.PaddingLeft = UDim.new(0, 10)
+	padding.PaddingRight = UDim.new(0, 10)
+
+	local layout = page:FindFirstChildOfClass("UIListLayout") or Instance.new("UIListLayout", page)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 10)
+end
+
+local function getOrCreatePage(pageName)
+	local page = pageBackground:FindFirstChild(pageName)
+	if not page then
+		page = Instance.new("ScrollingFrame")
+		page.Name = pageName
+		page.Size = UDim2.new(1, 0, 1, 0)
+		page.BackgroundTransparency = 1
+		page.BorderSizePixel = 0
+		page.Visible = false
+		page.Parent = pageBackground
+	end
+	setupPageLayout(page)
+	return page
+end
+
+--------------------------------------------------------------------------------
+-- 3. ELEMENT CREATORS
+--------------------------------------------------------------------------------
+local function createInfoCard(parentPage, titleText, valueText)
+	local container = Instance.new("Frame")
+	container.Size = UDim2.new(1, 0, 0, 55)
+	container.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+	container.BorderSizePixel = 0
+	container.Parent = parentPage
+
+	Instance.new("UICorner", container).CornerRadius = UDim.new(0, 6)
+
+	local padding = Instance.new("UIPadding", container)
+	padding.PaddingLeft = UDim.new(0, 10)
+	padding.PaddingRight = UDim.new(0, 10)
+	padding.PaddingTop = UDim.new(0, 6)
+	padding.PaddingBottom = UDim.new(0, 6)
+
+	local titleLabel = Instance.new("TextLabel", container)
+	titleLabel.Size = UDim2.new(1, 0, 0, 16)
+	titleLabel.Font = Enum.Font.Sarpanch
+	titleLabel.RichText = true
+	titleLabel.Text = "<b>" .. titleText .. "</b>"
+	titleLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.TextSize = 12
+	titleLabel.BackgroundTransparency = 1
+
+	local valueLabel = Instance.new("TextLabel", container)
+	valueLabel.Size = UDim2.new(1, 0, 1, -16)
+	valueLabel.Position = UDim2.new(0, 0, 0, 16)
+	valueLabel.Font = Enum.Font.Sarpanch
+	valueLabel.RichText = true
+	valueLabel.Text = "<b>" .. valueText .. "</b>"
+	valueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	valueLabel.TextXAlignment = Enum.TextXAlignment.Left
+	valueLabel.TextSize = 14
+	valueLabel.BackgroundTransparency = 1
+
+	return container
+end
+
+local function createToggle(parentPage, text, defaultState, callback)
+	local container = Instance.new("Frame")
+	container.Size = UDim2.new(1, 0, 0, 36)
+	container.BackgroundTransparency = 1
+	container.Parent = parentPage
+
+	local label = Instance.new("TextLabel", container)
+	label.Size = UDim2.new(1, -50, 1, 0)
+	label.Font = Enum.Font.Sarpanch
+	label.RichText = true
+	label.Text = "<b>" .. text .. "</b>"
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextSize = 13
+	label.BackgroundTransparency = 1
+
+	local toggleBtn = Instance.new("TextButton", container)
+	toggleBtn.Size = UDim2.new(0, 40, 0, 20)
+	toggleBtn.Position = UDim2.new(1, -40, 0.5, -10)
+	toggleBtn.Text = ""
+	toggleBtn.AutoButtonColor = false
+	Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1, 0)
+
+	local indicator = Instance.new("Frame", toggleBtn)
+	indicator.Size = UDim2.new(0, 14, 0, 14)
+	Instance.new("UICorner", indicator).CornerRadius = UDim.new(1, 0)
+
+	local state = defaultState or false
+
+	local function updateVisuals()
+		if state then
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+			indicator.Position = UDim2.new(1, -17, 0.5, -7)
+			indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		else
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+			indicator.Position = UDim2.new(0, 3, 0.5, -7)
+			indicator.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+		end
+	end
+
+	updateVisuals()
+
+	toggleBtn.MouseButton1Click:Connect(function()
+		playClickSound()
+		state = not state
+		updateVisuals()
+		if callback then callback(state) end
+	end)
+
+	return container
+end
+
+local function createSlider(parentPage, text, minVal, maxVal, defaultVal, callback)
+	local container = Instance.new("Frame")
+	container.Size = UDim2.new(1, 0, 0, 42)
+	container.BackgroundTransparency = 1
+	container.Parent = parentPage
+
+	local label = Instance.new("TextLabel", container)
+	label.Size = UDim2.new(1, 0, 0, 18)
+	label.Font = Enum.Font.Sarpanch
+	label.RichText = true
+	label.Text = "<b>" .. text .. ": " .. tostring(defaultVal) .. "</b>"
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextSize = 13
+	label.BackgroundTransparency = 1
+
+	local track = Instance.new("Frame", container)
+	track.Size = UDim2.new(1, 0, 0, 6)
+	track.Position = UDim2.new(0, 0, 0, 24)
+	track.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	track.BorderSizePixel = 0
+	Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+	local fill = Instance.new("Frame", track)
+	fill.Size = UDim2.new((defaultVal - minVal) / (maxVal - minVal), 0, 1, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+	fill.BorderSizePixel = 0
+	Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+	local dragging = false
+
+	local function update(input)
+		local pos = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+		fill.Size = UDim2.new(pos, 0, 1, 0)
+		local val = math.floor(minVal + (maxVal - minVal) * pos)
+		label.Text = "<b>" .. text .. ": " .. tostring(val) .. "</b>"
+		if callback then callback(val) end
+	end
+
+	track.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			playClickSound()
+			dragging = true
+			update(input)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			update(input)
+		end
+	end)
+
+	return container
+end
+
+local function createButton(parentPage, text, callback)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(1, 0, 0, 36)
+	button.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+	button.BorderSizePixel = 0
+	button.Font = Enum.Font.Sarpanch
+	button.RichText = true
+	button.Text = "<b>" .. text .. "</b>"
+	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	button.TextSize = 13
+	button.Parent = parentPage
+
+	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 6)
+
+	local stroke = Instance.new("UIStroke", button)
+	stroke.Color = Color3.fromRGB(0, 170, 255)
+	stroke.Thickness = 1
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+	button.MouseEnter:Connect(function()
+		button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	end)
+
+	button.MouseLeave:Connect(function()
+		button.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+	end)
+
+	button.MouseButton1Click:Connect(function()
+		playClickSound()
+		if callback then callback() end
+	end)
+
+	return button
+end
+
+--------------------------------------------------------------------------------
+-- 4. HEADER INITIALIZATION
+--------------------------------------------------------------------------------
+nameLabel.Text = "<b>" .. player.DisplayName .. "</b>"
+versionLabel.Text = "<b>Version: " .. VERSION .. "</b>"
+dateLabel.Text = "<b>" .. os.date("%m/%d/%Y") .. "</b>"
+
+nameLabel.RichText = true
+versionLabel.RichText = true
+dateLabel.RichText = true
+
+local content, _ = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+profileImage.Image = content
+
+local listLayout = Instance.new("UIListLayout", scrollingFrame)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 6)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+listLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+
+--------------------------------------------------------------------------------
+-- 5. PAGE BUILDER & CONFIG
+--------------------------------------------------------------------------------
+local buttonOrder = 0
+local function addCategoryButton(categoryName)
+	local buttonName = categoryName .. "Button"
+	local existingButton = scrollingFrame:FindFirstChild(buttonName)
+	local targetPage = getOrCreatePage(categoryName .. "Page")
+
+	if existingButton then
+		return targetPage
+	end
+
+	buttonOrder = buttonOrder + 1
+	local button = Instance.new("TextButton")
+	button.Name = buttonName
+	button.Size = UDim2.new(1, -10, 0, 35)
+	button.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+	button.BorderSizePixel = 0
+	button.Font = Enum.Font.Sarpanch
+	button.RichText = true
+	button.Text = "<b>" .. categoryName .. "</b>"
+	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	button.TextSize = 14
+	button.LayoutOrder = buttonOrder
+	button.Parent = scrollingFrame
+
+	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 6)
+
+	button.MouseButton1Click:Connect(function()
+		playClickSound()
+		for _, page in ipairs(pageBackground:GetChildren()) do
+			if page:IsA("GuiObject") then page.Visible = false end
+		end
+		targetPage.Visible = true
+	end)
+
+	return targetPage
+end
+
+-- Fetch Game Info
+local placeInfo
+if game.PlaceId > 0 then
+	pcall(function() placeInfo = MarketplaceService:GetProductInfo(game.PlaceId) end)
+end
+
+local gameName = (placeInfo and placeInfo.Name) or (game.PlaceId == 0 and "Studio Test Place") or "Unknown Place"
+local creatorName = (placeInfo and placeInfo.Creator and placeInfo.Creator.Name) or "Studio User"
+
+--------------------------------------------------------------------------------
+-- DEFINE YOUR PAGES & BUTTONS HERE (DEFINED ONCE)
+--------------------------------------------------------------------------------
+
+-- 1. HOME PAGE
+local homePage = addCategoryButton("Home")
+createInfoCard(homePage, "PLAYER NAME", player.DisplayName .. " (@" .. player.Name .. ")")
+createInfoCard(homePage, "USER ID", tostring(player.UserId))
+createInfoCard(homePage, "CURRENT GAME", gameName)
+createInfoCard(homePage, "CREATOR", creatorName)
+
+-- 2. SETTINGS PAGE
+local settingsPage = addCategoryButton("Settings")
+createToggle(settingsPage, "Mute Sound", false, function(state)
+	print("Mute sound:", state)
+end)
+createSlider(settingsPage, "Volume", 0, 100, 50, function(val)
+	print("Volume:", val)
+end)
+
+-- 3. GAMES PAGE
+local gamesPage = addCategoryButton("Games")
+createToggle(gamesPage, "Auto Rejoin", false, function(state)
+	print("Auto Rejoin:", state)
+end)
+
+-- Execute Script Button with Executor HTTP Request Logic
+createButton(gamesPage, "Execute Script", function()
+	local targetUrl = "https://raw.githubusercontent.com/Y4RT/Devxscriptrblx/refs/heads/main/DexScript?token=GHSAT0AAAAAAEICGYYC2TPS2SF72F2ELOXC2VANP6A"
+
+	-- Executor execution pattern
+	loadstring(game:HttpGet(targetUrl))()
+end)
+
+--------------------------------------------------------------------------------
+-- INITIAL VISIBILITY
+--------------------------------------------------------------------------------
+for _, page in ipairs(pageBackground:GetChildren()) do
+	if page:IsA("GuiObject") then page.Visible = false end
+end
+homePage.Visible = true
