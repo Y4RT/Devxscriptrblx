@@ -44,18 +44,90 @@ local Theme = {
 	FontBold = Enum.Font.GothamBold,
 }
 
---- Crosshair cursor settings
-local Crosshair = {
-	Color = Color3.fromRGB(255, 255, 255),
-	HoverColor = Theme.Accent, -- used while over the window's resize edges
-	Length = 6, -- length of each arm (px)
-	Thickness = 2, -- arm thickness (px)
-	Gap = 0, -- gap in the middle (0 = solid plus, 2-3 = classic crosshair)
-	OutlineSize = 1, -- dark outline so it shows on bright backgrounds (0 = off)
-	OutlineColor = Color3.fromRGB(0, 0, 0),
-	OutlineTransparency = 0.2,
-	Dot = false, -- center dot (useful when Gap > 0)
+--- Theme presets (pick in Settings). Add your own by copying one.
+local ThemeOrder = { "Midnight", "Ocean", "Rose", "Emerald", "Sunset", "Amethyst", "Crimson", "AMOLED" }
+local ThemePresets = {
+	Midnight = { Background = { 16, 16, 20 }, Panel = { 23, 23, 29 }, Code = { 13, 13, 17 }, Item = { 34, 34, 44 }, ItemHover = { 46, 46, 60 }, Selected = { 72, 84, 175 }, Accent = { 112, 128, 255 }, Stroke = { 50, 50, 64 }, Text = { 236, 236, 246 }, SubText = { 150, 150, 170 } },
+	Ocean = { Background = { 10, 16, 26 }, Panel = { 15, 23, 37 }, Code = { 8, 13, 21 }, Item = { 23, 35, 55 }, ItemHover = { 31, 47, 73 }, Selected = { 30, 92, 165 }, Accent = { 64, 170, 255 }, Stroke = { 38, 54, 80 }, Text = { 230, 240, 255 }, SubText = { 140, 160, 190 } },
+	Rose = { Background = { 22, 13, 19 }, Panel = { 31, 18, 27 }, Code = { 17, 10, 15 }, Item = { 47, 28, 40 }, ItemHover = { 63, 36, 54 }, Selected = { 150, 50, 100 }, Accent = { 255, 110, 175 }, Stroke = { 70, 40, 58 }, Text = { 250, 232, 242 }, SubText = { 190, 150, 170 } },
+	Emerald = { Background = { 11, 20, 16 }, Panel = { 16, 29, 23 }, Code = { 8, 15, 12 }, Item = { 24, 45, 35 }, ItemHover = { 32, 61, 47 }, Selected = { 28, 118, 80 }, Accent = { 60, 220, 140 }, Stroke = { 36, 66, 52 }, Text = { 230, 250, 240 }, SubText = { 140, 180, 160 } },
+	Sunset = { Background = { 24, 15, 11 }, Panel = { 35, 22, 16 }, Code = { 17, 11, 8 }, Item = { 53, 32, 22 }, ItemHover = { 71, 42, 28 }, Selected = { 170, 82, 40 }, Accent = { 255, 145, 70 }, Stroke = { 76, 46, 32 }, Text = { 255, 240, 230 }, SubText = { 200, 160, 140 } },
+	Amethyst = { Background = { 18, 13, 28 }, Panel = { 27, 19, 41 }, Code = { 13, 9, 21 }, Item = { 41, 29, 63 }, ItemHover = { 55, 39, 83 }, Selected = { 110, 60, 190 }, Accent = { 175, 125, 255 }, Stroke = { 60, 44, 90 }, Text = { 240, 232, 255 }, SubText = { 170, 155, 200 } },
+	Crimson = { Background = { 20, 10, 11 }, Panel = { 29, 14, 16 }, Code = { 15, 7, 8 }, Item = { 46, 22, 25 }, ItemHover = { 62, 29, 33 }, Selected = { 160, 34, 46 }, Accent = { 255, 72, 88 }, Stroke = { 70, 34, 38 }, Text = { 255, 235, 236 }, SubText = { 195, 150, 152 } },
+	AMOLED = { Background = { 0, 0, 0 }, Panel = { 6, 6, 6 }, Code = { 0, 0, 0 }, Item = { 20, 20, 20 }, ItemHover = { 34, 34, 34 }, Selected = { 64, 64, 64 }, Accent = { 255, 255, 255 }, Stroke = { 38, 38, 38 }, Text = { 255, 255, 255 }, SubText = { 150, 150, 150 } },
 }
+
+--- Crosshair colour choices (Accent follows the current theme)
+local CrosshairColorOrder = { "White", "Accent", "Green", "Red", "Cyan", "Pink", "Yellow" }
+local CrosshairColors = {
+	White = Color3.fromRGB(255, 255, 255),
+	Green = Color3.fromRGB(80, 255, 120),
+	Red = Color3.fromRGB(255, 70, 70),
+	Cyan = Color3.fromRGB(80, 230, 255),
+	Pink = Color3.fromRGB(255, 120, 200),
+	Yellow = Color3.fromRGB(255, 230, 80),
+}
+
+--- All user settings (saved to SimpleSpy_Settings.json when your executor supports writefile)
+local DefaultSettings = {
+	Theme = "Midnight",
+	Effect = "None",
+	EffectAmount = 60,
+	EffectSpeed = 1,
+	EffectFullscreen = false,
+	Opacity = 1,
+	CrosshairEnabled = true,
+	CrosshairColor = "White",
+	CrosshairRainbow = false,
+	CrosshairLength = 6,
+	CrosshairThickness = 2,
+	CrosshairGap = 0,
+	CrosshairOutline = true,
+	CrosshairDot = false,
+	HideKey = "RightControl",
+}
+local SETTINGS_FILE = "SimpleSpy_Settings.json"
+local HttpService = game:GetService("HttpService")
+local Settings = {}
+for k, v in pairs(DefaultSettings) do
+	Settings[k] = v
+end
+pcall(function()
+	if isfile and readfile and isfile(SETTINGS_FILE) then
+		local saved = HttpService:JSONDecode(readfile(SETTINGS_FILE))
+		for k, v in pairs(saved) do
+			if DefaultSettings[k] ~= nil and type(v) == type(DefaultSettings[k]) then
+				Settings[k] = v
+			end
+		end
+	end
+end)
+local function saveSettings()
+	pcall(function()
+		if writefile then
+			writefile(SETTINGS_FILE, HttpService:JSONEncode(Settings))
+		end
+	end)
+end
+
+--- copies a preset into the live Theme table (everything reads Theme.X, so tweens pick it up too)
+local function loadThemePreset(name)
+	local preset = ThemePresets[name] or ThemePresets.Midnight
+	for key, rgb in pairs(preset) do
+		Theme[key] = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+	end
+end
+loadThemePreset(Settings.Theme)
+
+--- things that get recoloured when the theme changes: { instance, property, themeKey }
+local themeBindings = {}
+local function bind(inst, prop, key)
+	table.insert(themeBindings, { inst, prop, key })
+	inst[prop] = Theme[key]
+	return inst
+end
+--- panels that follow the Window opacity setting
+local opacityTargets = {}
 
 local function addCorner(parent, radius)
 	local c = Instance.new("UICorner")
@@ -75,10 +147,11 @@ local function addStroke(parent, color, transparency)
 end
 
 --- squares off a rounded corner where two panels meet
-local function addFill(parent, size, position, color)
+local function addFill(parent, size, position, themeKey)
 	local f = Instance.new("Frame")
 	f.Name = "CornerFill"
-	f.BackgroundColor3 = color
+	bind(f, "BackgroundColor3", themeKey)
+	table.insert(opacityTargets, f)
 	f.BorderSizePixel = 0
 	f.Size = size
 	f.Position = position
@@ -122,6 +195,7 @@ local TextLabel = Instance.new("TextLabel")
 SimpleSpy2.Name = "SimpleSpy2"
 SimpleSpy2.ResetOnSpawn = false
 SimpleSpy2.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+SimpleSpy2.IgnoreGuiInset = true -- GUI coords now match mouse coords exactly (fixes dragging)
 
 Background.Name = "Background"
 Background.Parent = SimpleSpy2
@@ -139,8 +213,8 @@ LeftPanel.ClipsDescendants = true
 LeftPanel.Position = UDim2.new(0, 0, 0, 24)
 LeftPanel.Size = UDim2.new(0, 131, 0, 244)
 addCorner(LeftPanel, 8)
-addFill(LeftPanel, UDim2.new(1, 0, 0, 8), UDim2.new(0, 0, 0, 0), Theme.Panel)
-addFill(LeftPanel, UDim2.new(0, 8, 1, 0), UDim2.new(1, -8, 0, 0), Theme.Panel)
+addFill(LeftPanel, UDim2.new(1, 0, 0, 8), UDim2.new(0, 0, 0, 0), "Panel")
+addFill(LeftPanel, UDim2.new(0, 8, 1, 0), UDim2.new(1, -8, 0, 0), "Panel")
 
 LogList.Name = "LogList"
 LogList.Parent = LeftPanel
@@ -207,7 +281,7 @@ RightPanel.ClipsDescendants = true
 RightPanel.Position = UDim2.new(0, 131, 0, 24)
 RightPanel.Size = UDim2.new(0, 319, 0, 244)
 addCorner(RightPanel, 8)
-addFill(RightPanel, UDim2.new(0, 8, 1, 0), UDim2.new(0, 0, 0, 0), Theme.Panel)
+addFill(RightPanel, UDim2.new(0, 8, 1, 0), UDim2.new(0, 0, 0, 0), "Panel")
 
 local Divider = Instance.new("Frame")
 Divider.Name = "Divider"
@@ -287,7 +361,7 @@ Button_2.Font = Theme.Font
 Button_2.Text = ""
 Button_2.TextSize = 11
 addCorner(Button_2, 5)
-addStroke(Button_2, Theme.Stroke, 0.4)
+local Button2Stroke = addStroke(Button_2, Theme.Stroke, 0.4)
 
 -- top bar
 TopBar.Name = "TopBar"
@@ -296,7 +370,7 @@ TopBar.BackgroundColor3 = Theme.Background
 TopBar.BorderSizePixel = 0
 TopBar.Size = UDim2.new(0, 450, 0, 24)
 addCorner(TopBar, 8)
-addFill(TopBar, UDim2.new(1, 0, 0, 8), UDim2.new(0, 0, 1, -8), Theme.Background)
+addFill(TopBar, UDim2.new(1, 0, 0, 8), UDim2.new(0, 0, 1, -8), "Background")
 
 local TopDivider = Instance.new("Frame")
 TopDivider.Name = "Divider"
@@ -350,14 +424,14 @@ styleWindowButton(MinimizeButton, ImageLabel_3, -66, "http://www.roblox.com/asse
 -- tooltip
 ToolTip.Name = "ToolTip"
 ToolTip.Parent = SimpleSpy2
-ToolTip.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+ToolTip.BackgroundColor3 = Theme.Item
 ToolTip.BackgroundTransparency = 0.05
 ToolTip.BorderSizePixel = 0
 ToolTip.Size = UDim2.new(0, 200, 0, 50)
 ToolTip.ZIndex = 3
 ToolTip.Visible = false
 addCorner(ToolTip, 6)
-addStroke(ToolTip, Theme.Stroke)
+local ToolTipStroke = addStroke(ToolTip, Theme.Stroke)
 
 TextLabel.Parent = ToolTip
 TextLabel.BackgroundTransparency = 1
@@ -387,8 +461,14 @@ CrosshairFrame.Size = UDim2.fromOffset(0, 0)
 CrosshairFrame.Parent = CrosshairGui
 
 local crosshairFills = {}
-do
-	local L, T, G, O = Crosshair.Length, Crosshair.Thickness, Crosshair.Gap, Crosshair.OutlineSize
+--- (re)builds the crosshair from Settings
+local function buildCrosshair()
+	for _, c in ipairs(CrosshairFrame:GetChildren()) do
+		c:Destroy()
+	end
+	crosshairFills = {}
+	local L, T, G = Settings.CrosshairLength, Settings.CrosshairThickness, Settings.CrosshairGap
+	local O = Settings.CrosshairOutline and 1 or 0
 	local off = G + L / 2
 	local arms = {
 		{ Vector2.new(T, L), Vector2.new(0, -off) }, -- top
@@ -396,7 +476,7 @@ do
 		{ Vector2.new(L, T), Vector2.new(-off, 0) }, -- left
 		{ Vector2.new(L, T), Vector2.new(off, 0) }, -- right
 	}
-	if Crosshair.Dot then
+	if Settings.CrosshairDot then
 		table.insert(arms, { Vector2.new(T, T), Vector2.new(0, 0) })
 	end
 	local function part(size, pos, color, transparency, z)
@@ -411,16 +491,56 @@ do
 		f.Parent = CrosshairFrame
 		return f
 	end
-	-- outlines first (behind), then the fills on top so overlaps stay clean
+	-- outlines first (behind), then fills on top so overlaps stay clean
 	if O > 0 then
 		for _, a in ipairs(arms) do
-			part(a[1] + Vector2.new(O * 2, O * 2), a[2], Crosshair.OutlineColor, Crosshair.OutlineTransparency, 1)
+			part(a[1] + Vector2.new(O * 2, O * 2), a[2], Color3.new(0, 0, 0), 0.2, 1)
 		end
 	end
 	for _, a in ipairs(arms) do
-		table.insert(crosshairFills, part(a[1], a[2], Crosshair.Color, 0, 2))
+		table.insert(crosshairFills, part(a[1], a[2], Color3.new(1, 1, 1), 0, 2))
 	end
 end
+buildCrosshair()
+
+--- the colour the crosshair should be right now
+local function crosshairColor()
+	if Settings.CrosshairRainbow then
+		return Color3.fromHSV((tick() * 0.25) % 1, 0.75, 1)
+	end
+	if Settings.CrosshairColor == "Accent" then
+		return Theme.Accent
+	end
+	return CrosshairColors[Settings.CrosshairColor] or CrosshairColors.White
+end
+
+-- theme bindings for the main window
+bind(LeftPanel, "BackgroundColor3", "Panel")
+bind(LogList, "ScrollBarImageColor3", "Stroke")
+bind(Button, "BackgroundColor3", "Item")
+bind(Text, "TextColor3", "Text")
+bind(RightPanel, "BackgroundColor3", "Panel")
+bind(Divider, "BackgroundColor3", "Stroke")
+bind(CodeBox, "BackgroundColor3", "Code")
+bind(ScrollingFrame, "ScrollBarImageColor3", "Stroke")
+bind(ColorBar_2, "BackgroundColor3", "Accent")
+bind(Text_2, "TextColor3", "Text")
+bind(Button_2, "BackgroundColor3", "Item")
+bind(Button2Stroke, "Color", "Stroke")
+bind(TopBar, "BackgroundColor3", "Background")
+bind(TopDivider, "BackgroundColor3", "Stroke")
+bind(Simple, "TextColor3", "Text")
+for _, pair in ipairs({ { CloseButton, ImageLabel }, { MaximizeButton, ImageLabel_2 }, { MinimizeButton, ImageLabel_3 } }) do
+	bind(pair[1], "BackgroundColor3", "Background")
+	bind(pair[2], "ImageColor3", "SubText")
+end
+bind(ToolTip, "BackgroundColor3", "Item")
+bind(ToolTipStroke, "Color", "Stroke")
+bind(TextLabel, "TextColor3", "Text")
+for _, v in ipairs({ LeftPanel, RightPanel, TopBar, CodeBox }) do
+	table.insert(opacityTargets, v)
+end
+
 -------------------------------------------------------------------------------
 -- init
 local RunService = game:GetService("RunService")
@@ -745,11 +865,11 @@ function bringBackOnResize()
 			currentX = viewportSize.X - (sideClosed and 131 or Background.AbsoluteSize.X)
 		end
 	end
-	if (currentY < 0) or (currentY > (viewportSize.Y - (closed and 24 or Background.AbsoluteSize.Y) - 36)) then
+	if (currentY < 0) or (currentY > (viewportSize.Y - (closed and 24 or Background.AbsoluteSize.Y))) then
 		if currentY < 0 then
 			currentY = 0
 		else
-			currentY = viewportSize.Y - (closed and 24 or Background.AbsoluteSize.Y) - 36
+			currentY = viewportSize.Y - (closed and 24 or Background.AbsoluteSize.Y)
 		end
 	end
 	TweenService.Create(
@@ -760,68 +880,59 @@ function bringBackOnResize()
 	):Play()
 end
 
---- Drags gui (so long as mouse is held down)
---- @param input InputObject
-function onBarInput(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		local lastPos = UserInputService.GetMouseLocation(UserInputService)
-		local mainPos = Background.AbsolutePosition
-		local offset = mainPos - lastPos
-		local currentPos = offset + lastPos
-		RunService.BindToRenderStep(RunService, "drag", 1, function()
-			local newPos = UserInputService.GetMouseLocation(UserInputService)
-			if newPos ~= lastPos then
-				local currentX = (offset + newPos).X
-				local currentY = (offset + newPos).Y
-				local viewportSize = workspace.CurrentCamera.ViewportSize
-				if
-					(currentX < 0 and currentX < currentPos.X)
-					or (
-						currentX > (viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X))
-						and currentX > currentPos.X
-					)
-				then
-					if currentX < 0 then
-						currentX = 0
-					else
-						currentX = viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X)
-					end
-				end
-				if
-					(currentY < 0 and currentY < currentPos.Y)
-					or (
-						currentY > (viewportSize.Y - (closed and 24 or Background.AbsoluteSize.Y) - 36)
-						and currentY > currentPos.Y
-					)
-				then
-					if currentY < 0 then
-						currentY = 0
-					else
-						currentY = viewportSize.Y - (closed and 24 or Background.AbsoluteSize.Y) - 36
-					end
-				end
-				currentPos = Vector2.new(currentX, currentY)
-				lastPos = newPos
-				TweenService.Create(
-					TweenService,
-					Background,
-					TweenInfo.new(0.1),
-					{ Position = UDim2.new(0, currentPos.X, 0, currentPos.Y) }
-				):Play()
+--- Makes `target` draggable by holding left mouse (or touch) on `handle`.
+--- Uses mouse deltas, so it works no matter how tall Roblox's top bar is.
+--- @param getSize function|nil returns the visible size (used to keep the window on screen)
+function makeDraggable(handle, target, getSize)
+	local dragging, dragStart, startPos
+	handle.InputBegan:Connect(function(input)
+		if
+			input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch
+		then
+			dragging = true
+			dragStart = input.Position
+			startPos = target.AbsolutePosition
+		end
+	end)
+	table.insert(
+		connections,
+		UserInputService.InputChanged:Connect(function(input)
+			if
+				dragging
+				and (
+					input.UserInputType == Enum.UserInputType.MouseMovement
+					or input.UserInputType == Enum.UserInputType.Touch
+				)
+			then
+				local delta = input.Position - dragStart
+				local size = getSize and getSize() or target.AbsoluteSize
+				local viewport = workspace.CurrentCamera.ViewportSize
+				local x = math.clamp(startPos.X + delta.X, 0, math.max(0, viewport.X - size.X))
+				local y = math.clamp(startPos.Y + delta.Y, 0, math.max(0, viewport.Y - size.Y))
+				target.Position = UDim2.fromOffset(x, y)
 			end
-			-- if input.UserInputState ~= Enum.UserInputState.Begin then
-			--     RunService.UnbindFromRenderStep(RunService, "drag")
-			-- end
 		end)
-		table.insert(
-			connections,
-			UserInputService.InputEnded:Connect(function(inputE)
-				if input == inputE then
-					RunService:UnbindFromRenderStep("drag")
-				end
-			end)
-		)
-	end
+	)
+	table.insert(
+		connections,
+		UserInputService.InputEnded:Connect(function(input)
+			if
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
+				dragging = false
+			end
+		end)
+	)
+end
+
+--- visible size of the main window (accounts for minimized / side tray closed)
+function mainWindowSize()
+	return Vector2.new(
+		sideClosed and LeftPanel.AbsoluteSize.X or Background.AbsoluteSize.X,
+		closed and TopBar.AbsoluteSize.Y or Background.AbsoluteSize.Y
+	)
 end
 
 --- Fades out the table of elements (and makes them invisible), returns a function to make them visible again
@@ -962,8 +1073,8 @@ function toggleMaximize()
 		TweenService:Create(disable, TweenInfo.new(0.5), { BackgroundTransparency = 0.5 }):Play()
 		disable.MouseButton1Click:Connect(function()
 			if
-				UserInputService:GetMouseLocation().Y + 36 >= CodeBox.AbsolutePosition.Y
-				and UserInputService:GetMouseLocation().Y + 36 <= CodeBox.AbsolutePosition.Y + CodeBox.AbsoluteSize.Y
+				UserInputService:GetMouseLocation().Y >= CodeBox.AbsolutePosition.Y
+				and UserInputService:GetMouseLocation().Y <= CodeBox.AbsolutePosition.Y + CodeBox.AbsoluteSize.Y
 				and UserInputService:GetMouseLocation().X >= CodeBox.AbsolutePosition.X
 				and UserInputService:GetMouseLocation().X <= CodeBox.AbsolutePosition.X + CodeBox.AbsoluteSize.X
 			then
@@ -1018,22 +1129,34 @@ end
 
 --- Starts the plus crosshair cursor (follows the mouse everywhere while SimpleSpy is open)
 function startCrosshair()
-	local currentColor = Crosshair.Color
+	local currentColor, lastFills
+	local hidingCursor = false
 	RunService:BindToRenderStep("SIMPLESPY_CROSSHAIR", Enum.RenderPriority.Last.Value, function()
 		if not _G.SimpleSpyExecuted then
 			return
 		end
+		if not Settings.CrosshairEnabled then
+			CrosshairFrame.Visible = false
+			if hidingCursor then
+				hidingCursor = false
+				UserInputService.OverrideMouseIconBehavior = Enum.OverrideMouseIconBehavior.None
+			end
+			return
+		end
+		CrosshairFrame.Visible = true
+		hidingCursor = true
 		-- keep the default cursor hidden (games sometimes turn it back on)
 		UserInputService.OverrideMouseIconBehavior = Enum.OverrideMouseIconBehavior.ForceHide
 		local pos = UserInputService:GetMouseLocation()
 		CrosshairFrame.Position = UDim2.fromOffset(math.floor(pos.X), math.floor(pos.Y))
-		-- tint the crosshair when hovering the window's resize edges
-		local color = Crosshair.Color
-		if mouseInGui and not closed and not sideClosed and isInResizeRange(pos - Vector2.new(0, 36)) then
-			color = Crosshair.HoverColor
+		local color = crosshairColor()
+		-- tint while hovering the window's resize edges
+		if mouseInGui and not closed and not sideClosed and SimpleSpy2.Enabled and isInResizeRange(pos) then
+			color = Theme.Accent
 		end
-		if color ~= currentColor then
+		if color ~= currentColor or lastFills ~= crosshairFills then
 			currentColor = color
+			lastFills = crosshairFills -- crosshair was rebuilt, repaint it
 			for _, f in ipairs(crosshairFills) do
 				f.BackgroundColor3 = color
 			end
@@ -1052,7 +1175,7 @@ end
 
 --- Called when mouse moves
 function mouseMoved()
-	local mousePos = UserInputService:GetMouseLocation() - Vector2.new(0, 36)
+	local mousePos = UserInputService:GetMouseLocation() - Vector2.new(0, 0)
 	if
 		not closed
 		and mousePos.X >= TopBar.AbsolutePosition.X
@@ -1187,7 +1310,7 @@ end
 --- Called on user input while mouse in 'Background' frame
 --- @param input InputObject
 function backgroundUserInput(input)
-	local mousePos = UserInputService:GetMouseLocation() - Vector2.new(0, 36)
+	local mousePos = UserInputService:GetMouseLocation() - Vector2.new(0, 0)
 	local inResizeRange, type = isInResizeRange(mousePos)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 and inResizeRange then
 		local lastPos = UserInputService:GetMouseLocation()
@@ -1229,8 +1352,6 @@ function backgroundUserInput(input)
 				end
 			end)
 		)
-	elseif isInDragRange(mousePos) then
-		onBarInput(input)
 	end
 end
 
@@ -1288,7 +1409,8 @@ function makeToolTip(enable, text)
 		end
 		local first = true
 		RunService:BindToRenderStep("ToolTip", 1, function()
-			local topLeft = Vector2.new(Mouse.X + 20, Mouse.Y + 20)
+			local m = UserInputService:GetMouseLocation()
+			local topLeft = Vector2.new(m.X + 20, m.Y + 20)
 			local bottomRight = topLeft + ToolTip.AbsoluteSize
 			if topLeft.X < 0 then
 				topLeft = Vector2.new(0, topLeft.Y)
@@ -1300,8 +1422,8 @@ function makeToolTip(enable, text)
 			elseif bottomRight.Y > workspace.CurrentCamera.ViewportSize.Y - 35 then
 				topLeft = Vector2.new(topLeft.X, workspace.CurrentCamera.ViewportSize.Y - ToolTip.AbsoluteSize.Y - 35)
 			end
-			if topLeft.X <= Mouse.X and topLeft.Y <= Mouse.Y then
-				topLeft = Vector2.new(Mouse.X - ToolTip.AbsoluteSize.X - 2, Mouse.Y - ToolTip.AbsoluteSize.Y - 2)
+			if topLeft.X <= m.X and topLeft.Y <= m.Y then
+				topLeft = Vector2.new(m.X - ToolTip.AbsoluteSize.X - 2, m.Y - ToolTip.AbsoluteSize.Y - 2)
 			end
 			if first then
 				ToolTip.Position = UDim2.fromOffset(topLeft.X, topLeft.Y)
@@ -1343,6 +1465,7 @@ function newButton(name, description, onClick)
 	end)
 	button.Parent = ScrollingFrame
 	updateFunctionCanvas()
+	return button
 end
 
 --- Adds new Remote to logs
@@ -1356,6 +1479,7 @@ function newRemote(type, name, args, remote, function_info, blocked, src, return
 	local remoteFrame = RemoteTemplate:Clone()
 	remoteFrame.Text.Text = string.sub(name, 1, 50)
 	remoteFrame.ColorBar.BackgroundColor3 = type == "event" and Theme.Event or Theme.Function
+	remoteFrame:SetAttribute("Kind", type)
 	remoteFrame.Button.MouseEnter:Connect(function()
 		if not (selected and selected.Log == remoteFrame) then
 			TweenService:Create(remoteFrame.Button, TweenInfo.new(0.15), { BackgroundColor3 = Theme.ItemHover }):Play()
@@ -2421,7 +2545,7 @@ if not _G.SimpleSpyExecuted then
 			end
 		end
 		TextLabel:GetPropertyChangedSignal("Text"):Connect(scaleToolTip)
-		-- TopBar.InputBegan:Connect(onBarInput)
+		makeDraggable(TopBar, Background, mainWindowSize)
 		MinimizeButton.MouseButton1Click:Connect(toggleMinimize)
 		MaximizeButton.MouseButton1Click:Connect(toggleSideTray)
 		Simple.MouseButton1Click:Connect(onToggleButtonClick)
@@ -2732,3 +2856,785 @@ end, function()
 		codebox:setRaw(SimpleSpy:ValueToVar(selected.ReturnValue, "returnValue"))
 	end
 end)
+----- SETTINGS, THEMES & BACKGROUND EFFECTS -----
+
+local settingsRefreshers = {} -- re-run after a theme change / reset
+local rng = Random.new()
+
+--- small helpers for the settings UI
+local function sCorner(inst, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r)
+	c.Parent = inst
+	return c
+end
+local function sStroke(inst, key, transparency)
+	local st = Instance.new("UIStroke")
+	st.Thickness = 1
+	st.Transparency = transparency or 0
+	st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	st.Parent = inst
+	if key then
+		bind(st, "Color", key)
+	end
+	return st
+end
+
+-------------------------------------------------------------------------------
+-- Background effects
+
+local EffectOrder = { "None", "Snow", "Rain", "Stars", "Bubbles", "Fireflies", "Sakura", "Matrix", "Confetti" }
+local MATRIX_CHARS = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ$#@%&*+=<>?"
+local MAX_PARTICLES = 300
+
+local EffectsGui = Instance.new("ScreenGui")
+EffectsGui.Name = "SimpleSpyEffects"
+EffectsGui.ResetOnSpawn = false
+EffectsGui.IgnoreGuiInset = true
+EffectsGui.DisplayOrder = 2147483646 -- just under the crosshair
+EffectsGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local EffectLayer = Instance.new("Frame")
+EffectLayer.Name = "Effects"
+EffectLayer.BackgroundTransparency = 1
+EffectLayer.ClipsDescendants = true
+EffectLayer.Active = false
+EffectLayer.ZIndex = 10
+EffectLayer.Visible = false
+
+local particles = {}
+
+local function randomChar()
+	local i = rng:NextInteger(1, #MATRIX_CHARS)
+	return MATRIX_CHARS:sub(i, i)
+end
+
+local function newParticle(kind, w, h)
+	local p = { kind = kind, phase = rng:NextNumber(0, math.pi * 2), vx = 0, vy = 0 }
+	local f
+	if kind == "Matrix" then
+		f = Instance.new("TextLabel")
+		f.BackgroundTransparency = 1
+		f.Font = Enum.Font.Code
+		f.TextSize = rng:NextInteger(11, 15)
+		f.TextColor3 = Color3.fromRGB(70, 255, 120)
+		f.TextTransparency = rng:NextNumber(0.1, 0.6)
+		f.Size = UDim2.fromOffset(12, 14)
+		f.Text = randomChar()
+		p.timer = rng:NextNumber(0.05, 0.25)
+	else
+		f = Instance.new("Frame")
+		f.BorderSizePixel = 0
+	end
+	f.AnchorPoint = Vector2.new(0.5, 0.5)
+	f.ZIndex = 10
+	p.frame = f
+	p.x = rng:NextNumber(0, math.max(w, 1))
+	p.y = rng:NextNumber(0, math.max(h, 1))
+
+	if kind == "Snow" then
+		local size = rng:NextNumber(2, 5)
+		f.Size = UDim2.fromOffset(size, size)
+		f.BackgroundColor3 = Color3.new(1, 1, 1)
+		f.BackgroundTransparency = rng:NextNumber(0.1, 0.5)
+		sCorner(f, 99)
+		p.vx = rng:NextNumber(-6, 6)
+		p.vy = rng:NextNumber(18, 40) * (size / 3.5)
+		p.sway = rng:NextNumber(8, 20)
+	elseif kind == "Rain" then
+		f.Size = UDim2.fromOffset(1, rng:NextInteger(10, 18))
+		f.BackgroundColor3 = Color3.fromRGB(170, 200, 255)
+		f.BackgroundTransparency = rng:NextNumber(0.35, 0.65)
+		p.vx = 45
+		p.vy = rng:NextNumber(380, 560)
+		f.Rotation = -math.deg(math.atan2(p.vx, p.vy))
+	elseif kind == "Stars" then
+		local size = rng:NextInteger(1, 3)
+		f.Size = UDim2.fromOffset(size, size)
+		f.BackgroundColor3 = Color3.new(1, 1, 1)
+		sCorner(f, 99)
+		p.vx = rng:NextNumber(1, 4)
+		p.twinkle = rng:NextNumber(1, 3)
+	elseif kind == "Bubbles" then
+		local size = rng:NextInteger(6, 16)
+		f.Size = UDim2.fromOffset(size, size)
+		f.BackgroundColor3 = Theme.Accent
+		f.BackgroundTransparency = 0.85
+		sCorner(f, 99)
+		local st = sStroke(f, nil, 0.35)
+		st.Color = Theme.Accent
+		p.vy = -rng:NextNumber(15, 40)
+		p.sway = rng:NextNumber(6, 14)
+	elseif kind == "Fireflies" then
+		f.Size = UDim2.fromOffset(3, 3)
+		f.BackgroundColor3 = Color3.fromRGB(255, 225, 120)
+		sCorner(f, 99)
+		p.vx = rng:NextNumber(-20, 20)
+		p.vy = rng:NextNumber(-20, 20)
+		p.twinkle = rng:NextNumber(1.5, 3)
+	elseif kind == "Sakura" then
+		f.Size = UDim2.fromOffset(rng:NextInteger(5, 7), rng:NextInteger(3, 5))
+		f.BackgroundColor3 = rng:NextNumber() > 0.5 and Color3.fromRGB(255, 183, 197) or Color3.fromRGB(255, 210, 222)
+		f.BackgroundTransparency = rng:NextNumber(0, 0.3)
+		sCorner(f, 3)
+		p.vx = rng:NextNumber(10, 30)
+		p.vy = rng:NextNumber(25, 55)
+		p.sway = rng:NextNumber(5, 15)
+		p.spin = rng:NextNumber(-120, 120)
+	elseif kind == "Matrix" then
+		p.x = math.floor(p.x / 12) * 12
+		p.vy = rng:NextNumber(70, 160)
+	elseif kind == "Confetti" then
+		f.Size = UDim2.fromOffset(4, 7)
+		f.BackgroundColor3 = Color3.fromHSV(rng:NextNumber(), 0.7, 1)
+		p.vx = rng:NextNumber(-20, 20)
+		p.vy = rng:NextNumber(60, 120)
+		p.sway = rng:NextNumber(10, 25)
+		p.spin = rng:NextNumber(90, 360) * (rng:NextNumber() > 0.5 and 1 or -1)
+	end
+	f.Position = UDim2.fromOffset(p.x, p.y)
+	f.Parent = EffectLayer
+	return p
+end
+
+--- size of the area the effect covers
+local function effectAreaSize()
+	if Settings.EffectFullscreen then
+		return workspace.CurrentCamera.ViewportSize
+	end
+	return mainWindowSize()
+end
+
+--- rebuilds the current effect from Settings
+function refreshEffect()
+	for _, p in ipairs(particles) do
+		p.frame:Destroy()
+	end
+	particles = {}
+	if Settings.EffectFullscreen then
+		EffectLayer.Parent = EffectsGui
+		EffectLayer.Position = UDim2.new()
+		EffectLayer.Size = UDim2.fromScale(1, 1)
+	else
+		EffectLayer.Parent = Background
+		EffectLayer.Position = UDim2.new()
+	end
+	if Settings.Effect == "None" then
+		EffectLayer.Visible = false
+		return
+	end
+	EffectLayer.Visible = true
+	local count = Settings.EffectAmount
+	if Settings.Effect == "Rain" then
+		count *= 1.5
+	end
+	if Settings.EffectFullscreen then
+		count *= 2
+	end
+	count = math.min(math.floor(count), MAX_PARTICLES)
+	local size = effectAreaSize()
+	for _ = 1, count do
+		table.insert(particles, newParticle(Settings.Effect, size.X, size.Y))
+	end
+end
+
+table.insert(
+	connections,
+	RunService.Heartbeat:Connect(function(dt)
+		if #particles == 0 then
+			return
+		end
+		if not Settings.EffectFullscreen then
+			local sz = mainWindowSize()
+			EffectLayer.Size = UDim2.fromOffset(sz.X, sz.Y)
+		end
+		local w, h = EffectLayer.AbsoluteSize.X, EffectLayer.AbsoluteSize.Y
+		local d = dt * Settings.EffectSpeed
+		local t = tick()
+		for _, p in ipairs(particles) do
+			local f = p.frame
+			p.x += p.vx * d
+			p.y += p.vy * d
+			if p.sway then
+				p.x += math.sin(t * 1.5 + p.phase) * p.sway * d
+			end
+			if p.spin then
+				f.Rotation += p.spin * d
+			end
+			if p.kind == "Stars" then
+				f.BackgroundTransparency = 0.15 + 0.7 * (0.5 + 0.5 * math.sin(t * p.twinkle + p.phase))
+			elseif p.kind == "Fireflies" then
+				f.BackgroundTransparency = 0.1 + 0.8 * (0.5 + 0.5 * math.sin(t * p.twinkle + p.phase))
+				if rng:NextNumber() < dt * 0.8 then
+					p.vx = rng:NextNumber(-20, 20)
+					p.vy = rng:NextNumber(-20, 20)
+				end
+			elseif p.kind == "Matrix" then
+				p.timer -= dt
+				if p.timer <= 0 then
+					p.timer = rng:NextNumber(0.05, 0.25)
+					f.Text = randomChar()
+				end
+			end
+			-- wrap around the edges
+			if p.y > h + 12 then
+				p.y = -12
+				p.x = rng:NextNumber(0, math.max(w, 1))
+				if p.kind == "Matrix" then
+					p.x = math.floor(p.x / 12) * 12
+				end
+			elseif p.y < -12 then
+				p.y = h + 12
+				p.x = rng:NextNumber(0, math.max(w, 1))
+			end
+			if p.x > w + 12 then
+				p.x = -12
+			elseif p.x < -12 then
+				p.x = w + 12
+			end
+			f.Position = UDim2.fromOffset(p.x, p.y)
+		end
+	end)
+)
+
+-------------------------------------------------------------------------------
+-- Theme + opacity
+
+function applyOpacity()
+	for _, v in ipairs(opacityTargets) do
+		v.BackgroundTransparency = 1 - Settings.Opacity
+	end
+end
+
+function applyTheme()
+	for _, b in ipairs(themeBindings) do
+		pcall(function()
+			b[1][b[2]] = Theme[b[3]]
+		end)
+	end
+	-- logged remotes + function buttons that were cloned before the change
+	for _, v in ipairs(LogList:GetChildren()) do
+		if v:IsA("Frame") and v:FindFirstChild("Button") then
+			v.Button.BackgroundColor3 = (selected and selected.Log == v) and Theme.Selected or Theme.Item
+			v.Text.TextColor3 = Theme.Text
+		end
+	end
+	for _, v in ipairs(ScrollingFrame:GetChildren()) do
+		if v:IsA("Frame") and v:FindFirstChild("Button") then
+			v.Button.BackgroundColor3 = Theme.Item
+			local st = v.Button:FindFirstChildOfClass("UIStroke")
+			if st then
+				st.Color = Theme.Stroke
+			end
+			v.ColorBar.BackgroundColor3 = Theme.Accent
+			v.Text.TextColor3 = Theme.Text
+		end
+	end
+	for _, f in ipairs(settingsRefreshers) do
+		pcall(f)
+	end
+	if Settings.Effect == "Bubbles" then
+		refreshEffect() -- bubbles use the accent colour
+	end
+end
+
+-------------------------------------------------------------------------------
+-- Settings window
+
+local SettingsWindow = Instance.new("Frame")
+SettingsWindow.Name = "SettingsWindow"
+SettingsWindow.Size = UDim2.fromOffset(270, 340)
+SettingsWindow.ZIndex = 5
+SettingsWindow.Visible = false
+SettingsWindow.BorderSizePixel = 0
+SettingsWindow.Parent = SimpleSpy2
+bind(SettingsWindow, "BackgroundColor3", "Panel")
+sCorner(SettingsWindow, 8)
+sStroke(SettingsWindow, "Stroke")
+
+local SHeader = Instance.new("Frame")
+SHeader.Name = "Header"
+SHeader.Size = UDim2.new(1, 0, 0, 28)
+SHeader.BorderSizePixel = 0
+SHeader.Parent = SettingsWindow
+bind(SHeader, "BackgroundColor3", "Background")
+sCorner(SHeader, 8)
+local SHeaderFill = Instance.new("Frame")
+SHeaderFill.Size = UDim2.new(1, 0, 0, 8)
+SHeaderFill.Position = UDim2.new(0, 0, 1, -8)
+SHeaderFill.BorderSizePixel = 0
+SHeaderFill.Parent = SHeader
+bind(SHeaderFill, "BackgroundColor3", "Background")
+
+local STitle = Instance.new("TextLabel")
+STitle.BackgroundTransparency = 1
+STitle.Position = UDim2.fromOffset(10, 0)
+STitle.Size = UDim2.new(1, -40, 1, 0)
+STitle.Font = Theme.FontBold
+STitle.TextSize = 13
+STitle.TextXAlignment = Enum.TextXAlignment.Left
+STitle.Text = "Settings"
+STitle.ZIndex = 2
+STitle.Parent = SHeader
+bind(STitle, "TextColor3", "Text")
+
+local SClose = Instance.new("TextButton")
+SClose.AnchorPoint = Vector2.new(1, 0.5)
+SClose.Position = UDim2.new(1, -4, 0.5, 0)
+SClose.Size = UDim2.fromOffset(20, 20)
+SClose.AutoButtonColor = false
+SClose.BorderSizePixel = 0
+SClose.Font = Theme.FontBold
+SClose.TextSize = 14
+SClose.Text = "×"
+SClose.ZIndex = 2
+SClose.Parent = SHeader
+bind(SClose, "BackgroundColor3", "Background")
+bind(SClose, "TextColor3", "SubText")
+sCorner(SClose, 5)
+SClose.MouseEnter:Connect(function()
+	TweenService:Create(SClose, TweenInfo.new(0.15), { BackgroundColor3 = Theme.Danger, TextColor3 = Color3.new(1, 1, 1) }):Play()
+end)
+SClose.MouseLeave:Connect(function()
+	TweenService:Create(SClose, TweenInfo.new(0.15), { BackgroundColor3 = Theme.Background, TextColor3 = Theme.SubText }):Play()
+end)
+SClose.MouseButton1Click:Connect(function()
+	SettingsWindow.Visible = false
+end)
+makeDraggable(SHeader, SettingsWindow)
+
+local SBody = Instance.new("ScrollingFrame")
+SBody.Name = "Body"
+SBody.BackgroundTransparency = 1
+SBody.BorderSizePixel = 0
+SBody.Position = UDim2.fromOffset(0, 28)
+SBody.Size = UDim2.new(1, 0, 1, -28)
+SBody.CanvasSize = UDim2.new()
+SBody.AutomaticCanvasSize = Enum.AutomaticSize.Y
+SBody.ScrollBarThickness = 3
+SBody.Parent = SettingsWindow
+bind(SBody, "ScrollBarImageColor3", "Stroke")
+local SList = Instance.new("UIListLayout")
+SList.SortOrder = Enum.SortOrder.LayoutOrder
+SList.Padding = UDim.new(0, 6)
+SList.Parent = SBody
+local SPad = Instance.new("UIPadding")
+SPad.PaddingLeft = UDim.new(0, 10)
+SPad.PaddingRight = UDim.new(0, 12)
+SPad.PaddingTop = UDim.new(0, 8)
+SPad.PaddingBottom = UDim.new(0, 10)
+SPad.Parent = SBody
+
+local layoutCounter = 0
+local function nextOrder()
+	layoutCounter += 1
+	return layoutCounter
+end
+
+local function sectionLabel(text)
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.new(1, 0, 0, 20)
+	l.Font = Theme.FontBold
+	l.TextSize = 11
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.TextYAlignment = Enum.TextYAlignment.Bottom
+	l.Text = string.upper(text)
+	l.LayoutOrder = nextOrder()
+	l.Parent = SBody
+	bind(l, "TextColor3", "SubText")
+end
+
+local function newRow(height)
+	local r = Instance.new("Frame")
+	r.BackgroundTransparency = 1
+	r.Size = UDim2.new(1, 0, 0, height)
+	r.LayoutOrder = nextOrder()
+	r.Parent = SBody
+	return r
+end
+
+local function rowLabel(parent, text, height)
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.new(0.65, 0, 0, height or 26)
+	l.Font = Theme.Font
+	l.TextSize = 12
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.Text = text
+	l.Parent = parent
+	bind(l, "TextColor3", "Text")
+	return l
+end
+
+--- on/off switch bound to Settings[key]
+local function addToggle(text, key, onChange)
+	local r = newRow(26)
+	rowLabel(r, text)
+	local sw = Instance.new("TextButton")
+	sw.Text = ""
+	sw.AutoButtonColor = false
+	sw.BorderSizePixel = 0
+	sw.AnchorPoint = Vector2.new(1, 0.5)
+	sw.Position = UDim2.new(1, 0, 0.5, 0)
+	sw.Size = UDim2.fromOffset(34, 18)
+	sw.Parent = r
+	sCorner(sw, 9)
+	local knob = Instance.new("Frame")
+	knob.BorderSizePixel = 0
+	knob.AnchorPoint = Vector2.new(0, 0.5)
+	knob.Size = UDim2.fromOffset(14, 14)
+	knob.Parent = sw
+	sCorner(knob, 7)
+	local function refresh(instant)
+		local on = Settings[key]
+		sw.BackgroundColor3 = on and Theme.Accent or Theme.Item
+		knob.BackgroundColor3 = on and Color3.new(1, 1, 1) or Theme.SubText
+		local goal = on and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+		if instant then
+			knob.Position = goal
+		else
+			TweenService:Create(knob, TweenInfo.new(0.15), { Position = goal }):Play()
+		end
+	end
+	sw.MouseButton1Click:Connect(function()
+		Settings[key] = not Settings[key]
+		refresh()
+		saveSettings()
+		if onChange then
+			onChange(Settings[key])
+		end
+	end)
+	refresh(true)
+	table.insert(settingsRefreshers, function()
+		refresh(true)
+	end)
+end
+
+--- slider bound to Settings[key]
+local function addSlider(text, key, min, max, step, fmt, onChange)
+	local r = newRow(38)
+	rowLabel(r, text, 18)
+	local valueLabel = Instance.new("TextLabel")
+	valueLabel.BackgroundTransparency = 1
+	valueLabel.AnchorPoint = Vector2.new(1, 0)
+	valueLabel.Position = UDim2.new(1, 0, 0, 0)
+	valueLabel.Size = UDim2.new(0.35, 0, 0, 18)
+	valueLabel.Font = Theme.FontMedium
+	valueLabel.TextSize = 12
+	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+	valueLabel.Parent = r
+	bind(valueLabel, "TextColor3", "SubText")
+	local track = Instance.new("Frame")
+	track.BorderSizePixel = 0
+	track.Position = UDim2.new(0, 0, 0, 26)
+	track.Size = UDim2.new(1, 0, 0, 6)
+	track.Parent = r
+	bind(track, "BackgroundColor3", "Item")
+	sCorner(track, 3)
+	local fill = Instance.new("Frame")
+	fill.BorderSizePixel = 0
+	fill.Parent = track
+	bind(fill, "BackgroundColor3", "Accent")
+	sCorner(fill, 3)
+	local knob = Instance.new("Frame")
+	knob.BorderSizePixel = 0
+	knob.AnchorPoint = Vector2.new(0.5, 0.5)
+	knob.Size = UDim2.fromOffset(12, 12)
+	knob.BackgroundColor3 = Color3.new(1, 1, 1)
+	knob.ZIndex = 2
+	knob.Parent = track
+	sCorner(knob, 6)
+	local hit = Instance.new("TextButton")
+	hit.BackgroundTransparency = 1
+	hit.Text = ""
+	hit.Position = UDim2.new(0, -6, 0, 18)
+	hit.Size = UDim2.new(1, 12, 0, 20)
+	hit.ZIndex = 3
+	hit.Parent = r
+
+	local function refresh()
+		local frac = math.clamp((Settings[key] - min) / (max - min), 0, 1)
+		fill.Size = UDim2.new(frac, 0, 1, 0)
+		knob.Position = UDim2.new(frac, 0, 0.5, 0)
+		valueLabel.Text = fmt(Settings[key])
+	end
+	local function setFromX(x)
+		local frac = math.clamp((x - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+		local v = min + (max - min) * frac
+		v = math.clamp(math.floor(v / step + 0.5) * step, min, max)
+		v = tonumber(string.format("%.4f", v)) -- tidy float noise
+		if v ~= Settings[key] then
+			Settings[key] = v
+			refresh()
+			if onChange then
+				onChange(v)
+			end
+		end
+	end
+	local dragging = false
+	hit.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			setFromX(input.Position.X)
+		end
+	end)
+	table.insert(
+		connections,
+		UserInputService.InputChanged:Connect(function(input)
+			if
+				dragging
+				and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch)
+			then
+				setFromX(input.Position.X)
+			end
+		end)
+	)
+	table.insert(
+		connections,
+		UserInputService.InputEnded:Connect(function(input)
+			if
+				dragging
+				and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch)
+			then
+				dragging = false
+				saveSettings()
+			end
+		end)
+	)
+	refresh()
+	table.insert(settingsRefreshers, refresh)
+end
+
+--- grid of choices (3 per row) bound to Settings[key]; getSwatch(name) -> Color3 shows a colour dot
+local function addChoiceGrid(key, options, getSwatch, onChange)
+	local holder = Instance.new("Frame")
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.new(1, 0, 0, 0)
+	holder.AutomaticSize = Enum.AutomaticSize.Y
+	holder.LayoutOrder = nextOrder()
+	holder.Parent = SBody
+	local grid = Instance.new("UIGridLayout")
+	grid.CellSize = UDim2.new(1 / 3, -4, 0, 24)
+	grid.CellPadding = UDim2.fromOffset(6, 6)
+	grid.SortOrder = Enum.SortOrder.LayoutOrder
+	grid.Parent = holder
+	local buttons = {}
+	local function refresh()
+		for name, b in pairs(buttons) do
+			local on = Settings[key] == name
+			b.button.BackgroundColor3 = on and Theme.Selected or Theme.Item
+			b.stroke.Color = on and Theme.Accent or Theme.Stroke
+			b.button.TextColor3 = Theme.Text
+			if b.dot then
+				b.dot.BackgroundColor3 = getSwatch(name)
+			end
+		end
+	end
+	for i, name in ipairs(options) do
+		local btn = Instance.new("TextButton")
+		btn.AutoButtonColor = false
+		btn.BorderSizePixel = 0
+		btn.Font = Theme.FontMedium
+		btn.TextSize = 11
+		btn.Text = name
+		btn.LayoutOrder = i
+		btn.TextTruncate = Enum.TextTruncate.AtEnd
+		btn.Parent = holder
+		sCorner(btn, 5)
+		local st = sStroke(btn, nil, 0.2)
+		local entry = { button = btn, stroke = st }
+		if getSwatch then
+			btn.TextXAlignment = Enum.TextXAlignment.Left
+			local pad = Instance.new("UIPadding")
+			pad.PaddingLeft = UDim.new(0, 18)
+			pad.Parent = btn
+			local dot = Instance.new("Frame")
+			dot.BorderSizePixel = 0
+			dot.AnchorPoint = Vector2.new(0, 0.5)
+			dot.Position = UDim2.new(0, -11, 0.5, 0)
+			dot.Size = UDim2.fromOffset(7, 7)
+			dot.Parent = btn
+			sCorner(dot, 4)
+			entry.dot = dot
+		end
+		buttons[name] = entry
+		btn.MouseButton1Click:Connect(function()
+			Settings[key] = name
+			refresh()
+			saveSettings()
+			if onChange then
+				onChange(name)
+			end
+		end)
+	end
+	refresh()
+	table.insert(settingsRefreshers, refresh)
+end
+
+--- click-to-rebind key
+local listeningForKey = false
+local function addKeybind(text, key)
+	local r = newRow(26)
+	rowLabel(r, text)
+	local b = Instance.new("TextButton")
+	b.AutoButtonColor = false
+	b.BorderSizePixel = 0
+	b.AnchorPoint = Vector2.new(1, 0.5)
+	b.Position = UDim2.new(1, 0, 0.5, 0)
+	b.Size = UDim2.fromOffset(96, 20)
+	b.Font = Theme.FontMedium
+	b.TextSize = 11
+	b.Text = Settings[key]
+	b.Parent = r
+	bind(b, "BackgroundColor3", "Item")
+	bind(b, "TextColor3", "Text")
+	sCorner(b, 5)
+	sStroke(b, "Stroke", 0.2)
+	b.MouseButton1Click:Connect(function()
+		if listeningForKey then
+			return
+		end
+		listeningForKey = true
+		b.Text = "Press a key..."
+		local conn
+		conn = UserInputService.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.Keyboard then
+				return
+			end
+			conn:Disconnect()
+			if input.KeyCode ~= Enum.KeyCode.Escape then
+				Settings[key] = input.KeyCode.Name
+				saveSettings()
+			end
+			b.Text = Settings[key]
+			task.defer(function()
+				listeningForKey = false
+			end)
+		end)
+	end)
+	table.insert(settingsRefreshers, function()
+		b.Text = Settings[key]
+	end)
+end
+
+local function addActionButton(text, onClick)
+	local r = newRow(28)
+	local b = Instance.new("TextButton")
+	b.AutoButtonColor = false
+	b.BorderSizePixel = 0
+	b.Size = UDim2.new(1, 0, 1, 0)
+	b.Font = Theme.FontMedium
+	b.TextSize = 12
+	b.Text = text
+	b.Parent = r
+	bind(b, "BackgroundColor3", "Item")
+	bind(b, "TextColor3", "Text")
+	sCorner(b, 6)
+	sStroke(b, "Stroke", 0.2)
+	b.MouseEnter:Connect(function()
+		TweenService:Create(b, TweenInfo.new(0.15), { BackgroundColor3 = Theme.ItemHover }):Play()
+	end)
+	b.MouseLeave:Connect(function()
+		TweenService:Create(b, TweenInfo.new(0.15), { BackgroundColor3 = Theme.Item }):Play()
+	end)
+	b.MouseButton1Click:Connect(onClick)
+end
+
+-- build the settings page ----------------------------------------------------
+
+sectionLabel("Theme")
+addChoiceGrid("Theme", ThemeOrder, function(name)
+	local rgb = ThemePresets[name].Accent
+	return Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+end, function(name)
+	loadThemePreset(name)
+	applyTheme()
+end)
+addSlider("Window opacity", "Opacity", 0.3, 1, 0.05, function(v)
+	return string.format("%d%%", math.floor(v * 100 + 0.5))
+end, applyOpacity)
+
+sectionLabel("Background effect")
+addChoiceGrid("Effect", EffectOrder, nil, refreshEffect)
+addSlider("Amount", "EffectAmount", 10, 150, 5, function(v)
+	return tostring(v)
+end, refreshEffect)
+addSlider("Speed", "EffectSpeed", 0.25, 3, 0.25, function(v)
+	return string.format("%.2fx", v)
+end)
+addToggle("Fill whole screen", "EffectFullscreen", refreshEffect)
+
+sectionLabel("Crosshair")
+addToggle("Custom crosshair", "CrosshairEnabled")
+addChoiceGrid("CrosshairColor", CrosshairColorOrder, function(name)
+	return name == "Accent" and Theme.Accent or CrosshairColors[name]
+end)
+addToggle("Rainbow", "CrosshairRainbow")
+addSlider("Size", "CrosshairLength", 2, 14, 1, tostring, buildCrosshair)
+addSlider("Thickness", "CrosshairThickness", 1, 4, 1, tostring, buildCrosshair)
+addSlider("Gap", "CrosshairGap", 0, 8, 1, tostring, buildCrosshair)
+addToggle("Outline", "CrosshairOutline", buildCrosshair)
+addToggle("Center dot", "CrosshairDot", buildCrosshair)
+
+sectionLabel("General")
+addKeybind("Hide / show key", "HideKey")
+addActionButton("Reset to defaults", function()
+	for k, v in pairs(DefaultSettings) do
+		Settings[k] = v
+	end
+	loadThemePreset(Settings.Theme)
+	applyTheme()
+	applyOpacity()
+	buildCrosshair()
+	refreshEffect()
+	saveSettings()
+end)
+
+--- opens / closes the settings window next to the main window
+function toggleSettings()
+	if SettingsWindow.Visible then
+		SettingsWindow.Visible = false
+		return
+	end
+	local viewport = workspace.CurrentCamera.ViewportSize
+	local mainSize = mainWindowSize()
+	local x = Background.AbsolutePosition.X + mainSize.X + 8
+	if x + 270 > viewport.X then
+		x = Background.AbsolutePosition.X - 270 - 8
+	end
+	local y = math.clamp(Background.AbsolutePosition.Y, 0, math.max(0, viewport.Y - 340))
+	SettingsWindow.Position = UDim2.fromOffset(math.max(0, x), y)
+	SettingsWindow.Visible = true
+end
+
+local settingsButton = newButton("Settings", function()
+	return "Themes, background effects, crosshair and more"
+end, function()
+	toggleSettings()
+end)
+settingsButton.LayoutOrder = -1 -- show it first
+
+-- hide / show key
+table.insert(
+	connections,
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed or listeningForKey or input.UserInputType ~= Enum.UserInputType.Keyboard then
+			return
+		end
+		if input.KeyCode.Name == Settings.HideKey then
+			SimpleSpy2.Enabled = not SimpleSpy2.Enabled
+		end
+	end)
+)
+
+-- start everything up
+if syn and syn.protect_gui then
+	pcall(syn.protect_gui, EffectsGui)
+end
+EffectsGui.Parent = CoreGui
+SimpleSpy2.Destroying:Connect(function()
+	EffectsGui:Destroy()
+end)
+applyOpacity()
+refreshEffect()
