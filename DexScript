@@ -36,10 +36,20 @@ end
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
-local Highlight =
-	loadstring(
-		game:HttpGet("https://github.com/exxtremestuffs/SimpleSpySource/raw/master/highlight.lua")
-	)()
+-- syntax highlighter for the code box; SimpleSpy still opens if this can't load
+local Highlight
+do
+	local ok, result = pcall(function()
+		return loadstring(
+			game:HttpGet("https://github.com/exxtremestuffs/SimpleSpySource/raw/master/highlight.lua")
+		)()
+	end)
+	if ok and type(result) == "table" then
+		Highlight = result
+	else
+		warn("SimpleSpy: highlighter unavailable, using a plain code box. " .. tostring(result))
+	end
+end
 
 ---- UI ----
 
@@ -147,6 +157,45 @@ local function bind(inst, prop, key)
 	table.insert(themeBindings, { inst, prop, key })
 	inst[prop] = Theme[key]
 	return inst
+end
+--- built-in code box without colouring, used when the highlighter can't load
+function plainCodeBox(parent)
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.Size = UDim2.new(1, 0, 1, 0)
+	scroll.CanvasSize = UDim2.new()
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.XY
+	scroll.ScrollBarThickness = 4
+	scroll.ZIndex = 3
+	scroll.Parent = parent
+	local box = Instance.new("TextBox")
+	box.BackgroundTransparency = 1
+	box.Position = UDim2.fromOffset(6, 6)
+	box.Size = UDim2.new()
+	box.AutomaticSize = Enum.AutomaticSize.XY
+	box.ClearTextOnFocus = false
+	box.TextEditable = false
+	box.MultiLine = true
+	box.Font = Enum.Font.Code
+	box.TextSize = 13
+	box.TextXAlignment = Enum.TextXAlignment.Left
+	box.TextYAlignment = Enum.TextYAlignment.Top
+	box.Text = ""
+	box.ZIndex = 3
+	box.Parent = scroll
+	bind(box, "TextColor3", "Text")
+	local full = ""
+	return {
+		setRaw = function(_, text)
+			full = tostring(text)
+			box.Text = full:sub(1, 100000) -- very long text is only cut on screen
+			scroll.CanvasPosition = Vector2.new()
+		end,
+		getString = function()
+			return full
+		end,
+	}
 end
 --- panels that follow the Window opacity setting
 local opacityTargets = {}
@@ -2556,7 +2605,7 @@ if not _G.SimpleSpyExecuted then
 		onToggleButtonClick()
 		RemoteTemplate.Parent = nil
 		FunctionTemplate.Parent = nil
-		codebox = Highlight.new(CodeBox)
+		codebox = Highlight and Highlight.new(CodeBox) or plainCodeBox(CodeBox)
 		codebox:setRaw("")
 		getgenv().SimpleSpy = SimpleSpy
 		getgenv().getNil = function(name, class)
@@ -2630,6 +2679,7 @@ if not _G.SimpleSpyExecuted then
 		return
 	end
 else
+	warn("SimpleSpy didn't open: an earlier copy is still marked as running. Rejoin the game, then run this again.")
 	SimpleSpy2:Destroy()
 	return
 end
@@ -3703,6 +3753,7 @@ SimpleSpy2.Destroying:Connect(function()
 	publishDexLink(true)
 end)
 publishDexLink()
+print("SimpleSpy + Dex: SimpleSpy is open and linked")
 end) -- end of SIMPLESPY
 
 -- ===============================================================================
